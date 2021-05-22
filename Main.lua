@@ -3,18 +3,18 @@ local screen = require("Screen")
 local system = require("System")
 local filesystem = require("Filesystem")
 local color = require("Color")
+local keyboard = require("Keyboard")
 local internet = component.internet
 
 local config = {
     width = 80,
     height = 24,
-    background = 0x0,
     transparency = 0.3,
 }
 
 local currentScriptPath = filesystem.path(system.getCurrentScript())
 local realFS = filesystem.get(currentScriptPath)
-local workingDirectory = currentScriptPath .. "openos"
+local workingDirectory = currentScriptPath .. "rootfs/"
 
 --------------------------------------------------------------------------------
 
@@ -106,7 +106,7 @@ window.minimize = GUI.windowMinimize
 window.eventHandler = windowEventHandler
 window.movingEnabled = true
 
-window.backgroundPanel = window:addChild(GUI.panel(1, 1, window.width, window.height, config.background))
+window.backgroundPanel = window:addChild(GUI.panel(1, 1, window.width, window.height, 0x0))
 window.backgroundPanel.colors.transparency = config.transparency
 window:addChild(GUI.label(1, 1, window.width, 1, 0xE1E1E1, "OpenOS")):setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_CENTER)
 window:addChild(GUI.button(1, 1, 1, 1, nil, 0xFF4940, nil, 0x992400, "⬤")).onTouch = function()
@@ -128,9 +128,8 @@ gpuObject.draw = function()
 			for x = 1, config.width do
 				if (gpuObject.x + x - 1) >= workspace.x and (gpuObject.x + x - 1) <= workspace.x + workspace.width - 1 then
 					local emptySymbol = gpuImage[y][x][1] == " "
-
-					newFrameSymbols[bufferIndex] = emptySymbol and gpuImage[y][x][2] == config.background and newFrameSymbols[bufferIndex] or gpuImage[y][x][1]
-					newFrameBackgrounds[bufferIndex] = gpuImage[y][x][2] == config.background and color.blend(newFrameBackgrounds[bufferIndex], gpuImage[y][x][2], 1) or gpuImage[y][x][2]
+					newFrameSymbols[bufferIndex] = emptySymbol and gpuImage[y][x][2] == 0x0 and newFrameSymbols[bufferIndex] or gpuImage[y][x][1]
+					newFrameBackgrounds[bufferIndex] = gpuImage[y][x][2] == 0x0 and color.blend(newFrameBackgrounds[bufferIndex], gpuImage[y][x][2], 1) or gpuImage[y][x][2]
 					newFrameForegrounds[bufferIndex] = emptySymbol and newFrameForegrounds[bufferIndex] or gpuImage[y][x][3] 
 				end
 				
@@ -148,8 +147,12 @@ end
 
 local container = dofile(currentScriptPath .. "box.lua").createContainer()
 
+container.onBootstrap = function()
+    container.temp.sandbox.MINEOS_ROOTFS = realFS
+end
+
 for address, type in pairs(component.list()) do
-    if type ~= "gpu" and type ~= "screen" then
+    if type ~= "gpu" and type ~= "screen" and type ~= "eeprom" and address ~= realFS.address then
         container:passComponent(address)
     end
 end
@@ -170,7 +173,7 @@ container:addComponent("eeprom", container:uuid(), {
         return 256
     end,
     getData = function()
-        return "00000000-0000-0000-0000-000000000000"
+        return "f55c495e-2b53-403c-844b-90f20a0c085a"
     end,
     setData = function()
     end,
@@ -195,9 +198,9 @@ local virtualScreen = container:addComponent("screen", container:uuid(), {
     getAspectRatio = function()
         return 3.0, 2.0
     end,
-    geyKeyboards = function()
+    getKeyboards = function()
         local keyboards = container.libcomponent.list("keyboard")
-        keyboards.n = keyboards.n + 1
+        keyboards.n = 0
 
         for address in pairs(keyboards) do
             keyboards.n = keyboards.n + 1
@@ -232,7 +235,7 @@ local virtualGPU = container:addComponent("gpu", container:uuid(), {
     setBackground = function(background)
         checkArg(1, background, "number")
         gpuImage.bg = background
-        return background, nil
+        return background, 0
     end,
     getForeground = function(...)
         return gpuImage.fg
@@ -240,7 +243,7 @@ local virtualGPU = container:addComponent("gpu", container:uuid(), {
     setForeground = function(foreground)
         checkArg(1, foreground, "number")
         gpuImage.fg = foreground
-        return foreground, nil
+        return foreground, 0
     end,
     getPaletteColor = function(...)
         return 0
@@ -335,47 +338,47 @@ local virtualGPU = container:addComponent("gpu", container:uuid(), {
     end
 })  
 
-local virtualFS = container:addComponent("filesystem", "00000000-0000-0000-0000-000000000000", {
+local virtualFS = container:addComponent("filesystem", "f55c495e-2b53-403c-844b-90f20a0c085a", {
     spaceUsed = realFS.spaceUsed,
     open = function(path, mode)
         checkArg(1, path, "string")
-        return filesystem.open(workingDirectory .. path, mode)
+        return realFS.open(workingDirectory .. path, mode)
     end,
     seek = realFS.seek,
     makeDirectory = function(path)
         checkArg(1, path, "string")
-        return filesystem.makeDirectory(workingDirectory .. path)
+        return realFS.makeDirectory(workingDirectory .. path)
     end,
     exists = function(path)
         checkArg(1, path, "string")
-        return filesystem.exists(workingDirectory .. path)
+        return realFS.exists(workingDirectory .. path)
     end,
-    isReadonly = realFS.spaceUsed,
+    isReadOnly = realFS.isReadOnly,
     write = realFS.write,
     spaceTotal = realFS.spaceTotal,
     isDirectory = function(path)
         checkArg(1, path, "string")
-        return filesystem.isDirectory(workingDirectory .. path)
+        return realFS.isDirectory(workingDirectory .. path)
     end,
     rename = function(from, to)
         checkArg(1, from, "string")
         checkArg(2, to, "string")
-        return filesystem.rename(workingDirectory .. from, workingDirectory .. to)
+        return realFS.rename(workingDirectory .. from, workingDirectory .. to)
     end,
     list = function(path)
         checkArg(1, path, "string")
-        return filesystem.list(workingDirectory .. path)
+        return realFS.list(workingDirectory .. path)
     end,
     lastModified = function(path)
-        return filesystem.lastModified(workingDirectory .. path)
+        return realFS.lastModified(workingDirectory .. path)
     end,
     getLabel = realFS.getLabel,
     remove = function(path)
-        return filesystem.remove(workingDirectory .. path)
+        return realFS.remove(workingDirectory .. path)
     end,
     close = realFS.close,
     size = function(path)
-        return filesystem.size(workingDirectory .. path)
+        return realFS.size(workingDirectory .. path)
     end,
     read = realFS.read,
     setLabel = realFS.getLabel
@@ -400,10 +403,13 @@ if not virtualFS.callback.exists("/init.lua") then
     end
 
     centrizedSet(config.height / 2 - 1, "Downloading")
+    virtualGPU.callback.setForeground(0xE1E1E1)
+    centrizedSet(config.height / 2 + 6, "Tip: use ALT to pass touch events to the OpenOS")
+    virtualGPU.callback.setForeground(0xFFFFFF)
     drawProgressBar(0)
     local handle, reason = filesystem.open(currentScriptPath .. "Temp.pkg", "w")
 
-    local request, reason, chunk = internet.request("http://localhost:8080/Archive.pkg", nil, {
+    local request, reason, chunk = internet.request("http://localhost:8080/RootFS.pkg", nil, {
         ["User-Agent"]="Box/OpenComputers",
     })
 
@@ -427,6 +433,7 @@ if not virtualFS.callback.exists("/init.lua") then
             end
         end
 
+        handle:close()
         virtualGPU.callback.fill(1, 1, config.width, config.height, " ")
         centrizedSet(config.height / 2, "Extracting")
 
@@ -441,34 +448,48 @@ if not virtualFS.callback.exists("/init.lua") then
     end
 end
 
--- local nextResume = computer.uptime()
+local nextResume = computer.uptime()
 
--- local function resume(...)
---     if container.temp.signalQueue[1] or computer.uptime() >= nextResume or container:passSignal({...}) then
---         local success, result = container:resume()
---         workspace:draw()
+local function resume(...)
+    local signal = {...}
 
---         if not success then
---             GUI.alert(result)
---             return window:remove()
---         end
+    if keyboard.isAltDown() then
+        gpuObject.disabled = false
+        gpuObject.passScreenEvents = false
 
---         nextResume = computer.uptime() + result
---     end
--- end
+        if signal[1] == "touch" or signal[1] == "drag" or signal[1] == "drop" or signal[1] == "scroll" or signal[1] == "walk" then
+            container:pushSignal(signal)
+        end
+    else
+        gpuObject.disabled = true
+        gpuObject.passScreenEvents = true
+    end
 
--- local success, reason = container:bootstrap()
+    if container.temp.signalQueue[1] or computer.uptime() >= nextResume or container:passSignal(signal) then
+        local success, result = container:resume()
+        workspace:draw()
 
--- if success then
---     gpuObject.disabled = true
---     gpuObject.passScreenEvents = true
---     gpuObject.eventHandler = function(workspace, container, ...)
---         resume(...)
---     end
+        if not success then
+            if result ~= "container shutdown" then
+                GUI.alert(result)
+            end
+            return window:remove()
+        end
 
---     workspace:draw()    
---     container.startUptime = computer.uptime()
---     resume()
--- else
---     GUI.alert(reason)
--- end
+        nextResume = computer.uptime() + result
+    end
+end
+
+local success, reason = container:bootstrap()
+
+if success then
+    gpuObject.eventHandler = function(workspace, container, ...)
+        resume(...)
+    end
+
+    workspace:draw()    
+    container.startUptime = computer.uptime()
+    resume()
+else
+    GUI.alert(reason)
+end
