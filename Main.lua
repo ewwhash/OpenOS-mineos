@@ -4,6 +4,7 @@ local system = require("System")
 local filesystem = require("Filesystem")
 local color = require("Color")
 local keyboard = require("Keyboard")
+local box = require("Box")
 local internet = component.internet
 
 local config = {
@@ -145,7 +146,8 @@ end
 
 ------------------------------------------------------------------------------
 
-local container = dofile(currentScriptPath .. "box.lua").createContainer()
+local container = box.createContainer()
+package.loaded.box = nil
 
 container.onBootstrap = function()
     container.temp.sandbox.MINEOS_ROOTFS = realFS
