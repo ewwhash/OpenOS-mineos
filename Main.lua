@@ -409,7 +409,7 @@ if not virtualFS.callback.exists("/init.lua") then
     drawProgressBar(0)
     local handle, reason = filesystem.open(currentScriptPath .. "Temp.pkg", "w")
 
-    local request, reason, chunk = internet.request("http://localhost:8080/RootFS.pkg", nil, {
+    local request, reason, chunk = internet.request("https://raw.githubusercontent.com/BrightYC/OpenOS-mineos/master/RootFS.pkg", nil, {
         ["User-Agent"]="Box/OpenComputers",
     })
 
