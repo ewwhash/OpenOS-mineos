@@ -1,0 +1,12 @@
+{
+    "Lua.diagnostics.globals": [
+        "checkArg",
+        "component",
+        "computer",
+        "unicode",
+        "bit32"
+    ],
+    "Lua.diagnostics.disable": [
+        "unbalanced-assignments"
+    ]
+}
