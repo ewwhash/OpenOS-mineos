@@ -39,7 +39,7 @@ local configPath = currentScriptPath .. "Config.cfg"
 --------------------------------------------------------------------------------
 
 local function bootstrap()
-
+    filesystem.remove(currentScriptPath .. "rootfs")
     local workspace = system.getWorkspace()
     local container = GUI.addBackgroundContainer(workspace, true, true, "Downloading")
     local progressBar = container.layout:addChild(GUI.progressBar(1, 1, 40, 0x66DB80, 0x0, 0xE1E1E1, 0, true, true, "", "%"))
@@ -300,7 +300,7 @@ local container = box.createContainer()
 
 properties:addItem("Reset OpenOS").onTouch = function()
     if bootstrap() then
-        container.libcomputer.shutdown(true)
+        container:bootstrap()
     else
         filesystem.remove(currentScriptPath .. "rootfs")
         window:remove()
