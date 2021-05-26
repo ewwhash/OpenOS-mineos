@@ -15,7 +15,7 @@ local config = {
     
     colorScheme = {
         {"Background", GUI.WINDOW_BACKGROUND_PANEL_COLOR},
-        {"Foreground", 0x4B4B4B},
+        {"Foreground", 0x1E1E1E},
         {"Title background", GUI.WINDOW_TITLE_BACKGROUND_COLOR},
         {"Title foreground", GUI.WINDOW_TITLE_TEXT_COLOR}
     },
@@ -371,7 +371,7 @@ resizeWindow = function(width, height)
         if window.maximized then
             window:maximize()
         end
-        window:resize(width, height + (window.titleBar.hidden and 0 or 1))
+        window:resize(width, height + 1)
         window.localX = math.floor(workspace.width / 2 - window.width / 2)
         window.localY = math.floor(workspace.height / 2 - window.height / 2)
         window.localX = window.localX < 1 and 1 or window.localX
