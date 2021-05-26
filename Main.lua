@@ -90,7 +90,7 @@ local function bootstrap()
         return false, "Open failed: " .. reason
     end
 
-    local result, reason = download("https://github.com/BrightYC/OpenOS-mineos/blob/master/OpenOS.pkg?raw=true", currentScriptPath .. "Temp.pkg", function(progress)
+    local result, reason = download("https://github.com/BrightYC/OpenOS-mineos/blob/master/rootfs.pkg?raw=true", currentScriptPath .. "Temp.pkg", function(progress)
         progressBar.value = progress
         workspace:draw()
     end)
