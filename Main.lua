@@ -118,7 +118,7 @@ local function bootstrap()
 end
 
 if not filesystem.exists(currentScriptPath .. "rootfs") then
-    return bootstrap()
+    bootstrap()
 end
 
 if filesystem.exists(configPath) then
