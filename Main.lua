@@ -14,8 +14,8 @@ local config = {
     title = true,
     
     colorScheme = {
-        {"Background", 0x0},
-        {"Foreground", 0xffffff},
+        {"Background", GUI.WINDOW_BACKGROUND_PANEL_COLOR},
+        {"Foreground", 0x4B4B4B},
         {"Title background", GUI.WINDOW_TITLE_BACKGROUND_COLOR},
         {"Title foreground", GUI.WINDOW_TITLE_TEXT_COLOR}
     },
@@ -110,9 +110,11 @@ local function bootstrap()
     if not result then
         GUI.alert(reason)
         container:remove()
+        workspace:draw()
         return false
     end
     container:remove()
+    workspace:draw()
 
     return true
 end
@@ -300,7 +302,12 @@ local container = box.createContainer()
 
 properties:addItem("Reset OpenOS").onTouch = function()
     if bootstrap() then
-        container:bootstrap()
+        local success, reason = container:bootstrap()
+
+        if not success then
+            GUI.alert(reason)
+            window:remove()
+        end
     else
         filesystem.remove(currentScriptPath .. "rootfs")
         window:remove()
