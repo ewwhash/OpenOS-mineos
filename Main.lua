@@ -367,7 +367,7 @@ else
 end
 
 resizeWindow = function(width, height)
-    if not (window.width == width and window.height == height) then
+    if not (window.width == width and window.height == height + 1) then
         if window.maximized then
             window:maximize()
         end
