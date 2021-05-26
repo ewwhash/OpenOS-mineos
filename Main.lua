@@ -1,451 +1,432 @@
 local GUI = require("GUI")
-local screen = require("Screen")
 local system = require("System")
 local filesystem = require("Filesystem")
-local color = require("Color")
 local keyboard = require("Keyboard")
-local internet = component.internet
+local text = require("Text")
+local screen = require("Screen")
+local color = require("Color")
+local getUserSettings = system.getUserSettings
 
 local config = {
-    width = 80,
-    height = 24,
-    transparency = 0.3,
+    width = 70,
+    height = 21,
+    shadow = true,
+    title = true,
+    
+    colorScheme = {
+        {"Background", 0x0},
+        {"Foreground", 0xffffff},
+        {"Title background", GUI.WINDOW_TITLE_BACKGROUND_COLOR},
+        {"Title foreground", GUI.WINDOW_TITLE_TEXT_COLOR}
+    },
+
+    titleLabel = "OpenOS",
+    backgroundTransparency = 0,
+    titleTransparency = 0,
+}
+
+local componentAddresses = {
+    screen = "e04934fb-10a8-417e-918f-5e67ff1013c8",
+    filesystem = "f55c495e-2b53-403c-844b-90f20a0c085a",
+    eeprom = "4c276989-f178-4b7f-9132-2bfaaa4b0563",
+    gpu = "5a5b2521-0a54-4fd0-b170-8d231f67649e",
+    tmpfs = "ef489a28-5418-4375-8142-f8948992415e"
 }
 
 local currentScriptPath = filesystem.path(system.getCurrentScript())
-local realFS = filesystem.get(currentScriptPath)
-local workingDirectory = currentScriptPath .. "rootfs/"
+local configPath = currentScriptPath .. "Config.cfg"
 
 --------------------------------------------------------------------------------
 
-local function windowCheck(window, x, y)
-	local child
-	for i = #window.children, 1, -1 do
-		child = window.children[i]
-		
-		if
-			not child.hidden and
-			not child.disabled and
-			child:isPointInside(x, y)
-		then
-			if not child.passScreenEvents and child.eventHandler then
-				return true
-			elseif child.children then
-				local result = windowCheck(child, x, y)
-				if result == true then
-					return true
-				elseif result == false then
-					return false
-				end
-			end
-		end
-	end
+local function bootstrap()
+
+    local workspace = system.getWorkspace()
+    local container = GUI.addBackgroundContainer(workspace, true, true, "Downloading")
+    local progressBar = container.layout:addChild(GUI.progressBar(1, 1, 40, 0x66DB80, 0x0, 0xE1E1E1, 0, true, true, "", "%"))
+    workspace:draw()
+
+    if not component.list("internet")() then
+        return GUI.alert("No component internet available"), container:remove()
+    end
+
+    local function download(url, path, progressHandler)
+        filesystem.makeDirectory(filesystem.path(path))
+        local handle, reason = filesystem.open(path, "w")
+
+        if handle then
+            local request, reason = component.internet.request(url, nil, {["User-Agent"]="Wget/OpenComputers"}), 0
+
+            if request then
+                while not request.finishConnect() do
+                    require("Event").sleep(0.1)
+                end
+
+                local headers = select(3, request.response())
+                local contentLength, downloaded = headers["Content-Length"] and headers["Content-Length"][1] or headers["content-length"] and headers["content-length"][1] or math.huge, 0
+
+                while true do
+                    local chunk = request.read(math.huge)
+
+                    if chunk then
+                        local success, reason = handle:write(chunk)
+
+                        if success then
+                            downloaded = downloaded + #chunk
+                            if progressHandler then
+                                progressHandler(math.min(100, math.ceil(downloaded / contentLength * 100)))
+                            end
+                        else
+                            return false, "Write failed: " .. reason
+                        end
+                    else
+                        return true
+                    end
+                end
+            end
+
+            return false, "Download failed: " .. reason
+        end
+        
+        return false, "Open failed: " .. reason
+    end
+
+    local result, reason = download("https://github.com/ewwhash/OpenOS-mineos/blob/master/OpenOS.pkg?raw=true", currentScriptPath .. "Temp.pkg", function(progress)
+        progressBar.value = progress
+        workspace:draw()
+    end)
+
+    if not result then
+        GUI.alert(reason)
+        container:remove()
+        return false
+    end
+    
+    progressBar:remove()
+    container.label.text = "Almost done"
+    workspace:draw()
+    local result, reason = require("Compressor").unpack(currentScriptPath .. "Temp.pkg", currentScriptPath)
+    filesystem.remove(currentScriptPath .. "Temp.pkg")
+
+    if not result then
+        GUI.alert(reason)
+        container:remove()
+        return false
+    end
+    container:remove()
+
+    return true
 end
 
-local function windowEventHandler(workspace, window, e1, e2, e3, e4, ...)
-	if window.movingEnabled then
-		if e1 == "touch" then
-			if not windowCheck(window, e3, e4) then
-				window.lastTouchX, window.lastTouchY = e3, e4
-			end
-
-			if window ~= window.parent.children[#window.parent.children] then
-				window:moveToFront()
-				
-				if window.onFocus then
-					window.onFocus(workspace, window, e1, e2, e3, e4, ...)
-				end
-
-				workspace:draw()
-			end
-		elseif e1 == "drag" and window.lastTouchX and not windowCheck(window, e3, e4) then
-			local xOffset, yOffset = e3 - window.lastTouchX, e4 - window.lastTouchY
-			if xOffset ~= 0 or yOffset ~= 0 then
-				window.localX, window.localY = window.localX + xOffset, window.localY + yOffset
-				window.lastTouchX, window.lastTouchY = e3, e4
-				
-				workspace:draw()
-			end
-		elseif e1 == "drop" then
-			window.lastTouchX, window.lastTouchY = nil, nil
-		end
-	end
+if not filesystem.exists(currentScriptPath .. "rootfs") then
+    return bootstrap()
 end
 
-local function windowResize(window, width, height, ignoreOnResizeFinished)
-	window.width, window.height = width, height
-	
-	if window.onResize then
-		window.onResize(width, height)
-	end
-
-	if window.onResizeFinished and not ignoreOnResizeFinished then
-		window.onResizeFinished()
-	end
-
-	return window
+if filesystem.exists(configPath) then
+    config = filesystem.readTable(configPath)
 end
+
+local box = dofile(currentScriptPath .. "Modules/Box.lua")
+local windows = dofile(currentScriptPath .. "Modules/Window.lua")
+local components = dofile(currentScriptPath .. "Modules/Component.lua", box)
+local updateColors, resizeWindow
 
 --------------------------------------------------------------------------------
 
-local gpuImage = {bg = 0x0, fg = 0xffffff}
+local workspace, window, menu = system.addWindow(windows.create(
+    1, 
+    1, 
+    config.width, 
+    config.height, 
+    config.shadow,  
+    config.titleLabel, 
+    config.titleTransparency, 
+    config.colorScheme[3][2], -- Title background 
+    config.colorScheme[4][2] -- Title foreground
+))
 
-for y = 1, config.height do
-    gpuImage[y] = {}
-    for x = 1, config.width do
-        gpuImage[y][x] = {" ", 0x0, 0x0} -- symbol, background, foreground
+if not config.title then
+    window.titleBar:hide()
+end
+
+window.maximize = function()
+    window.movingEnabled = window.maximized
+    GUI.windowMaximize(window, true)
+end
+
+window.onResizeFinished = function()
+    window.titleBar.width = window.width
+end
+
+local windowsContainer = system.getWindowsContainer()
+
+local properties = menu:addContextMenuItem("Properties")
+properties:addItem("Color scheme").onTouch = function()
+    local container = GUI.addBackgroundContainer(workspace, true, false)
+    local pickerWidth, separatorWidth = math.floor(container.width / #config.colorScheme * 0.6), 3
+    local startX, startY = math.floor(container.width / 2 - ((pickerWidth + separatorWidth) * #config.colorScheme) / 2) + separatorWidth, math.floor(container.height / 2 - 3)
+    container:addChild(GUI.label(1, startY, container.width, 1, 0xFFFFFF, "Color scheme")):setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_TOP)
+    startY = startY + 3
+
+    for i = 1, #config.colorScheme do
+        if i == 1 then
+            container:addChild(GUI.slider(startX, startY + 4, pickerWidth, 0x66DB80, 0x1e1e1e, 0xFFFFFF, 0xAAAAAA, 0, 100, config.backgroundTransparency * 100, false, "Transparency ", " %")).onValueChanged = function(workspace, slider)
+                config.backgroundTransparency = slider.value / 100
+                updateColors()
+                filesystem.writeTable(configPath, config)
+            end
+        elseif i == 3 then
+            container:addChild(GUI.slider(startX, startY + 4, pickerWidth, 0x66DB80, 0x1e1e1e, 0xFFFFFF, 0xAAAAAA, 0, 100, config.titleTransparency * 100, false, "Transparency ", " %")).onValueChanged = function(workspace, slider)
+                config.titleTransparency = slider.value / 100
+                updateColors()
+                filesystem.writeTable(configPath, config)
+            end
+        end
+
+        local colorSelector = container:addChild(GUI.colorSelector(startX, startY, pickerWidth, separatorWidth, config.colorScheme[i][2], config.colorScheme[i][1]))
+        colorSelector.onColorSelected = function()
+            local oldBackground, oldForeground = config.colorScheme[1][2], config.colorScheme[2][2]
+            config.colorScheme[i][2] = colorSelector.color
+            updateColors(oldBackground, oldForeground)
+            filesystem.writeTable(configPath, config)
+        end
+        startX = startX + pickerWidth + separatorWidth
     end
 end
 
-local window = GUI.container(20, 10, config.width, config.height + 1)
+properties:addItem("Terminal").onTouch = function()
+    local container = GUI.addBackgroundContainer(workspace, true, false)
+    local startX, startY = math.floor(container.width / 2 - 15), math.floor(container.height / 2 - 3)
+    container:addChild(GUI.label(1, startY, container.width, 1, 0xFFFFFF, "Terminal")):setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_TOP)
+    startY = startY + 3
 
-window.passScreenEvents = false
-window.resize = windowResize
-window.maximize = GUI.windowMaximize
-window.minimize = GUI.windowMinimize
-window.eventHandler = windowEventHandler
-window.movingEnabled = true
+    local titleBar = container:addChild(GUI.switchAndLabel(startX, startY, 29, 8, 0x66DB80, 0x2D2D2D, 0xE1E1E1, 0x878787, "Title bar:", config.title))
+    titleBar.switch.onStateChanged = function()
+        config.title = titleBar.switch.state
 
-window.backgroundPanel = window:addChild(GUI.panel(1, 1, window.width, window.height, 0x0))
-window.backgroundPanel.colors.transparency = config.transparency
-window:addChild(GUI.label(1, 1, window.width, 1, 0xE1E1E1, "OpenOS")):setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_CENTER)
-window:addChild(GUI.button(1, 1, 1, 1, nil, 0xFF4940, nil, 0x992400, "⬤")).onTouch = function()
-    window:remove()
+        if config.title then
+            window.titleBar:unhide()
+            window.gpu.context.localY = 2
+            if window.maximized then
+                window.gpu:flush(windowsContainer.width, windowsContainer.height - 1, true)
+            end
+        else
+            window.titleBar:hide()
+            window.gpu.maxHeight = windowsContainer.height
+            window.gpu.context.localY = 1
+            if window.maximized then
+                window.gpu:flush(windowsContainer.width, windowsContainer.height, true)
+            end
+        end
+
+        filesystem.writeTable(configPath, config)
+    end
+    startY = startY + 2
+
+    local shadow = container:addChild(GUI.switchAndLabel(startX, startY, 29, 8, 0x66DB80, 0x2D2D2D, 0xE1E1E1, 0x878787, "Shadow:", config.shadow))
+    shadow.switch.onStateChanged = function()
+        config.shadow = shadow.switch.state
+        window.drawShadow = config.shadow
+        filesystem.writeTable(configPath, config)
+    end
+
+    startY = startY + 3
+    container:addChild(GUI.text(startX, startY, 0x878787, "Resolution: "))
+    local width = container:addChild(GUI.input(startX + 13, startY, 6, 1, 0xEEEEEE, 0x555555, 0x999999, 0xFFFFFF, 0x2D2D2D, window.gpu.temp.width, nil, true))
+    width.validator = function(text)
+        local width = tonumber(text)
+
+        if #text == 0 then
+            return
+        end
+
+        if #tostring(text) > 0 and width and (width >= 1 and width <= workspace.width) then
+            return true
+        end
+        GUI.alert("Invalid width")
+    end
+    width.onInputFinished = function()
+        local width = math.floor(tonumber(width.text))
+        resizeWindow(width, window.height)
+        window.gpu:flush(width, window.gpu.temp.height, true)
+        config.width = width
+        filesystem.writeTable(configPath, config)
+    end
+
+    container:addChild(GUI.text(startX + 20, startY, 0x878787, "x"))
+    local height = container:addChild(GUI.input(startX + 22, startY, 6, 1, 0xEEEEEE, 0x555555, 0x999999, 0xFFFFFF, 0x2D2D2D, window.gpu.temp.height, nil, true))
+    height.validator = function(text)
+        local height = tonumber(text)
+
+        if #text == 0 then
+            return
+        end
+
+        if #tostring(text) > 0 and height and (height >= 1 and height <= windowsContainer.height - (window.titleBar.hidden and 0 or 1)) then
+            return true
+        end
+        GUI.alert("Invalid height")
+    end
+    height.onInputFinished = function()
+        local height = math.floor(tonumber(height.text))
+        resizeWindow(window.width, height)
+        window.gpu:flush(window.gpu.temp.width, height, true)
+        config.height = height
+        filesystem.writeTable(configPath, config)
+    end
 end
-window:addChild(GUI.button(3, 1, 1, 1, nil, 0xFFB640, nil, 0x996D00, "⬤")).onTouch = function()
-    window:minimize()
-end
+properties:addSeparator()
 
-local workspace = system.addWindow(window)
-local gpuObject = window:addChild(GUI.object(1, 2, config.width, config.height))
-gpuObject.draw = function()
-	local bufferWidth = screen.getWidth()
-	local bufferIndex, indexStepOnReachOfSquareWidth = screen.getIndex(gpuObject.x, gpuObject.y), bufferWidth - gpuObject.width
-	local newFrameBackgrounds, newFrameForegrounds, newFrameSymbols = screen.getNewFrameTables()
+menu:addItem("Hotkeys").onTouch = function()
+    local container = GUI.addBackgroundContainer(workspace, true, true, "Hotkeys")
+	
+	local help = {
+        "ALT - pass 'drag' event",
+        " ",
+        "CTRL+E - close editor",
+        " ",
+        "CTRL+SHIFT+C - interrupt"
+	}
 
-	for y = 1, config.height do
-		if (window.y + y - 1) >= workspace.y and (window.y + y) <= workspace.y + workspace.height - 1 then
-			for x = 1, config.width do
-				if (gpuObject.x + x - 1) >= workspace.x and (gpuObject.x + x - 1) <= workspace.x + workspace.width - 1 then
-					local emptySymbol = gpuImage[y][x][1] == " "
-					newFrameSymbols[bufferIndex] = emptySymbol and gpuImage[y][x][2] == 0x0 and newFrameSymbols[bufferIndex] or gpuImage[y][x][1]
-					newFrameBackgrounds[bufferIndex] = gpuImage[y][x][2] == 0x0 and color.blend(newFrameBackgrounds[bufferIndex], gpuImage[y][x][2], 1) or gpuImage[y][x][2]
-					newFrameForegrounds[bufferIndex] = emptySymbol and newFrameForegrounds[bufferIndex] or gpuImage[y][x][3] 
-				end
-				
-				bufferIndex = bufferIndex + 1
-			end
-			
-			bufferIndex = bufferIndex + indexStepOnReachOfSquareWidth
-		else
-			bufferIndex = bufferIndex + bufferWidth
-		end
-	end
+	local textBox = container.layout:addChild(GUI.textBox(1, 1, 60, #help, nil, 0xB4B4B4, help, 1, 0, 0, false, false))
+	textBox:setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_TOP)
+	textBox.eventHandler = nil
+
+	workspace:draw()
 end
 
 ------------------------------------------------------------------------------
 
-local container = dofile(currentScriptPath .. "Box.lua").createContainer()
+local container = box.createContainer()
 
-container.onBootstrap = function()
-    container.temp.sandbox.MINEOS_ROOTFS = realFS
+properties:addItem("Reset OpenOS").onTouch = function()
+    if bootstrap() then
+        container.libcomputer.shutdown(true)
+    else
+        filesystem.remove(currentScriptPath .. "rootfs")
+        window:remove()
+    end
+end
+
+container.libcomputer.tmpAddress = function()
+    return componentAddresses.tmpfs
+end
+
+window.container = container
+window.address = container.address
+
+container:attachComponent(components.createScreen(componentAddresses.screen, container))
+container:attachComponent(components.createFilesystem(componentAddresses.filesystem, filesystem.get(currentScriptPath), currentScriptPath .. "rootfs/"))
+container:attachComponent(components.createFilesystem(componentAddresses.tmpfs, component.proxy(computer.tmpAddress()), "/OpenOS/"))
+window.gpu = container:attachComponent(components.createGPU(componentAddresses.gpu, config.colorScheme[1][2], config.colorScheme[2][2], windowsContainer.width, windowsContainer.height - (window.titleBar.hidden and 0 or 1), container.libcomponent.list("screen")()))
+window.gpu.context = window:addChild(GUI.object(1, 1, config.width, config.height))
+window.gpu.context.draw = function()
+    local bufferWidth = screen.getWidth()
+    local bufferIndex, indexStepOnReachOfSquareWidth, gpuIndex = screen.getIndex(window.gpu.context.x, window.gpu.context.y), bufferWidth - window.gpu.temp.width, 1
+    local newFrameBackgrounds, newFrameForegrounds, newFrameSymbols = screen.getNewFrameTables()
+
+    for y = 1, window.gpu.temp.height do
+        if (window.gpu.context.y + y - 1) >= 1 and (window.gpu.context.y + y - 1) <= workspace.height then
+            for x = 1, window.gpu.temp.width do
+                if (window.gpu.context.x + x - 1) >= workspace.x and (window.gpu.context.x + x - 1) <= workspace.x + workspace.width - 1 then
+                    if config.backgroundTransparency > 0 then
+                        local emptySymbol = window.gpu.temp.symbols[gpuIndex] == " "
+                        newFrameSymbols[bufferIndex] = emptySymbol and window.gpu.temp.backgrounds[gpuIndex] == config.colorScheme[1][2] and newFrameSymbols[bufferIndex] or window.gpu.temp.symbols[gpuIndex]
+                        newFrameBackgrounds[bufferIndex] = window.gpu.temp.backgrounds[gpuIndex] == config.colorScheme[1][2] and color.blend(newFrameBackgrounds[bufferIndex], config.colorScheme[1][2], config.backgroundTransparency) or window.gpu.temp.backgrounds[gpuIndex]
+                        newFrameForegrounds[bufferIndex] = emptySymbol and color.blend(newFrameForegrounds[bufferIndex], config.colorScheme[1][2], config.backgroundTransparency) or window.gpu.temp.foregrounds[gpuIndex]
+                    else
+                        newFrameSymbols[bufferIndex] = window.gpu.temp.symbols[gpuIndex]
+                        newFrameBackgrounds[bufferIndex] = window.gpu.temp.backgrounds[gpuIndex]
+                        newFrameForegrounds[bufferIndex] = window.gpu.temp.foregrounds[gpuIndex]
+                    end
+                end
+                
+                gpuIndex = gpuIndex + 1
+                bufferIndex = bufferIndex + 1
+            end
+            
+            bufferIndex = bufferIndex + indexStepOnReachOfSquareWidth
+        else
+            bufferIndex = bufferIndex + bufferWidth
+            gpuIndex = gpuIndex + window.gpu.temp.width
+        end
+    end
+end
+
+if window.titleBar.hidden then
+    window.gpu.maxHeight = windowsContainer.height
+    window.gpu.context.localY = 1
+else
+    window.gpu.context.localY = 2
+end
+
+resizeWindow = function(width, height)
+    if not (window.width == width and window.height == height) then
+        if window.maximized then
+            window:maximize()
+        end
+        window:resize(width, height + (window.titleBar.hidden and 0 or 1))
+        window.localX = math.floor(workspace.width / 2 - window.width / 2)
+        window.localY = math.floor(workspace.height / 2 - window.height / 2)
+        window.localX = window.localX < 1 and 1 or window.localX
+        window.localY = window.localY < 1 and 1 or window.localY
+    end
+end
+
+window.gpu:flush(config.width, config.height)
+window.gpu.onResolutionChange = resizeWindow
+
+window.titleBar.maximize.onTouch = function()
+    window:maximize()
+    window.gpu:flush(window.width, window.height - 1, true)
 end
 
 for address, type in pairs(component.list()) do
-    if type ~= "gpu" and type ~= "screen" and type ~= "eeprom" and address ~= realFS.address then
-        container:passComponent(address)
+    if type ~= "screen" and type ~= "gpu" and type ~= "eeprom" and address ~= filesystem.get(currentScriptPath).address and address ~= computer.tmpAddress() then
+        container:passComponent(address, true) -- weak passthrough
     end
 end
 
-container:addComponent("eeprom", container:uuid(), {
-    get = function()        
-        return 'local a;do local b=component.invoke;local function c(d,e,...)local f=table.pack(pcall(b,d,e,...))if not f[1]then return nil,f[2]else return table.unpack(f,2,f.n)end end;local g=component.list("eeprom")()computer.getBootAddress=function()return c(g,"getData")end;computer.setBootAddress=function(d)return c(g,"setData",d)end;do local h=component.list("screen")()local i=component.list("gpu")()if i and h then c(i,"bind",h)end end;local function j(d)local k,l=c(d,"open","/init.lua")if not k then return nil,l end;local m=""repeat local n,l=c(d,"read",k,math.huge)if not n and l then return nil,l end;m=m..(n or"")until not n;c(d,"close",k)return load(m,"=init")end;local l;if computer.getBootAddress()then a,l=j(computer.getBootAddress())end;if not a then error("no bootable medium found"..(l and": "..tostring(l)or""),0)end end;a()'
-    end,
-    set = function() end,
-    getLabel = function()
-        return "Box BIOS"
-    end,
-    setLabel = function() end,
-    getSize = function()
-        return 4096
-    end,
-    getDataSize = function()
-        return 256
-    end,
-    getData = function()
-        return "f55c495e-2b53-403c-844b-90f20a0c085a"
-    end,
-    setData = function()
-    end,
-    getChecksum = function()
-        return "checksum, i suppose? what do you expect?"
-    end,
-    makeReadonly = function(self)
-        return false
+container.beforeBootstrap = function()
+    for address in pairs(container.libcomponent.list("eeprom")) do
+        container.components[address]:remove()
     end
-})
+    container:attachComponent(components.createEEPROM(componentAddresses.eeprom, componentAddresses.filesystem))
+end
 
-local virtualScreen = container:addComponent("screen", container:uuid(), {
-    isOn = function()
-        return true
-    end,
-    turnOn = function()
-        return
-    end,
-    turnOff = function()
-        return
-    end,
-    getAspectRatio = function()
-        return 3.0, 2.0
-    end,
-    getKeyboards = function()
-        local keyboards = container.libcomponent.list("keyboard")
-        keyboards.n = 0
-
-        for address in pairs(keyboards) do
-            keyboards.n = keyboards.n + 1
-        end
-
-        return keyboards
-    end,
-    setPrecise = function()
-        return false
-    end,
-    isPrecise = function()
-        return false
-    end,
-    setTouchModeEnabled = function()
-        return false
-    end,
-    isTouchModeInverted = function()
-        return false
-    end
-})
-
-local virtualGPU = container:addComponent("gpu", container:uuid(), {
-    bind = function()
-        return true
-    end,
-    getScreen = function()
-        return virtualScreen.address
-    end,
-    getBackground = function()
-        return gpuImage.bg
-    end,
-    setBackground = function(background)
-        checkArg(1, background, "number")
-        gpuImage.bg = background
-        return background, 0
-    end,
-    getForeground = function(...)
-        return gpuImage.fg
-    end,
-    setForeground = function(foreground)
-        checkArg(1, foreground, "number")
-        gpuImage.fg = foreground
-        return foreground, 0
-    end,
-    getPaletteColor = function(...)
-        return 0
-    end,
-    setPaletteColor = function()
-        return 0
-    end,
-    maxDepth = function(self)
-        return 8
-    end,
-    getDepth = function(self)
-        return 8
-    end,
-    setDepth = function()
-        return false
-    end,
-    maxResolution = function()
-        return config.width, config.height
-    end,
-    getResolution = function()
-        return config.width, config.height
-    end,
-    setResolution = function()
-        return config.width, config.height
-    end,
-    getViewport = function()
-        return config.width, config.height
-    end,
-    setViewport = function()
-        return false
-    end,
-    get = function(x, y)
-		checkArg(1, x, "number")
-		checkArg(2, y, "number")
-
-        if not gpuImage[y] or not gpuImage[y][x]then
-            error("index out of bounds")
-        end
-
-        return gpuImage[y][x][1], gpuImage[y][x][3], gpuImage[y][x][2]
-    end,
-    set = function(x, y, value, vertical)
-		checkArg(1, x, "number")
-		checkArg(2, y, "number")
-
-        for i = 1, unicode.len(value) do
-            local X, Y = vertical and x or x + i - 1, vertical and y + i - 1 or y
-
-            if gpuImage[Y] and gpuImage[Y][X] then
-                gpuImage[Y][X] = {unicode.sub(value, i, i), gpuImage.bg, gpuImage.fg}
-            end
-        end
-    end,
-    copy = function(x, y, w, h, tx, ty)
-		checkArg(1, x, "number")
-		checkArg(2, y, "number")
-		checkArg(3, w, "number")
-		checkArg(4, h, "number")
-		checkArg(5, tx, "number")
-		checkArg(6, ty, "number")
-
-        for Y = 1, h do
-            for X = 1, w do
-                local copyX, copyY = x + X - 1, y + Y - 1
-
-                if gpuImage[copyY] and gpuImage[copyY][copyX] then
-                    local tX, tY = copyX + tx, copyY + ty
-
-                    if gpuImage[tY] and gpuImage[tY][tX] then
-                        gpuImage[tY][tX] = gpuImage[copyY][copyX]
-                    end
-                end
-            end
-        end
-    end,
-    fill = function(x, y, w, h, char)
-		checkArg(1, x, "number")
-		checkArg(2, y, "number")
-		checkArg(3, w, "number")
-		checkArg(4, h, "number")
-		checkArg(5, char, "string")
-
-        for Y = 1, h do
-            for X = 1, w do
-                local setX, setY = x + X - 1, y + Y - 1
-
-                if gpuImage[setY] and gpuImage[setY][setX] then
-                    gpuImage[setY][setX] = {char, gpuImage.bg, gpuImage.fg}
-                end
-            end
-        end
-    end
-})  
-
-local virtualFS = container:addComponent("filesystem", "f55c495e-2b53-403c-844b-90f20a0c085a", {
-    spaceUsed = realFS.spaceUsed,
-    open = function(path, mode)
-        checkArg(1, path, "string")
-        return realFS.open(workingDirectory .. path, mode)
-    end,
-    seek = realFS.seek,
-    makeDirectory = function(path)
-        checkArg(1, path, "string")
-        return realFS.makeDirectory(workingDirectory .. path)
-    end,
-    exists = function(path)
-        checkArg(1, path, "string")
-        return realFS.exists(workingDirectory .. path)
-    end,
-    isReadOnly = realFS.isReadOnly,
-    write = realFS.write,
-    spaceTotal = realFS.spaceTotal,
-    isDirectory = function(path)
-        checkArg(1, path, "string")
-        return realFS.isDirectory(workingDirectory .. path)
-    end,
-    rename = function(from, to)
-        checkArg(1, from, "string")
-        checkArg(2, to, "string")
-        return realFS.rename(workingDirectory .. from, workingDirectory .. to)
-    end,
-    list = function(path)
-        checkArg(1, path, "string")
-        return realFS.list(workingDirectory .. path)
-    end,
-    lastModified = function(path)
-        return realFS.lastModified(workingDirectory .. path)
-    end,
-    getLabel = realFS.getLabel,
-    remove = function(path)
-        return realFS.remove(workingDirectory .. path)
-    end,
-    close = realFS.close,
-    size = function(path)
-        return realFS.size(workingDirectory .. path)
-    end,
-    read = realFS.read,
-    setLabel = realFS.getLabel
-})
-
-if not virtualFS.callback.exists("/init.lua") then
-    local function centrize(len)
-        return math.ceil(config.width / 2 - len / 2)
-    end
+container.onBootstrap = function()
+    container.temp.sandbox.MINEOS_INTEGRATION = {
+        COLORS = {
+            BACKGROUND = config.colorScheme[1][2],
+            FOREGROUND = config.colorScheme[2][2]
+        },
+        ATTACH_EEPROM = function()
+            container.components[componentAddresses.eeprom]:remove()
+            local eeprom = component.list("eeprom")()
     
-    local function centrizedSet(y, text)
-        virtualGPU.callback.set(centrize(unicode.len(text)), y, text)
-        workspace:draw()
-    end
-    
-    local function drawProgressBar(percent)
-        virtualGPU.callback.setForeground(0x1E1E1E)
-        virtualGPU.callback.set(centrize(30), config.height / 2 + 1, ("━"):rep(30))
-        virtualGPU.callback.setForeground(0xFFFFFF)
-        virtualGPU.callback.set(centrize(30), config.height / 2 + 1, ("━"):rep(math.floor(math.min(percent, 100) / 100 * 30)))
-        workspace:draw()
-    end
-
-    centrizedSet(config.height / 2 - 1, "Downloading")
-    virtualGPU.callback.setForeground(0xE1E1E1)
-    centrizedSet(config.height / 2 + 6, "Tip: use ALT to pass touch events to the OpenOS")
-    virtualGPU.callback.setForeground(0xFFFFFF)
-    drawProgressBar(0)
-    local handle, reason = filesystem.open(currentScriptPath .. "Temp.pkg", "w")
-
-    local request, reason, chunk = internet.request("https://raw.githubusercontent.com/ewwhash/OpenOS-mineos/master/RootFS.pkg", nil, {
-        ["User-Agent"]="Box/OpenComputers",
-    })
-
-    if request then
-        repeat
-            require("event").sleep(.5)
-        until request.finishConnect()
-
-        local headers = select(3, request.response())
-        local contentLength, downloaded = headers["Content-Length"] and headers["Content-Length"][1] or headers["content-length"] and headers["content-length"][1], 0
-
-        while true do
-            local chunk = request.read(math.huge)
-
-            if chunk then
-                handle:write(chunk)
-                downloaded = downloaded + #chunk
-                drawProgressBar(math.ceil(downloaded / contentLength * 100))
-            else
-                break
+            if eeprom then
+                container:passComponent(eeprom, true)
             end
+        end,
+        RESOLUTION = {
+            WIDTH = config.width,
+            HEIGHT = config.height
+        },
+        ROOTFS = filesystem.get(currentScriptPath),
+        CURRENT_PROGRAM = function(name)
+            window.titleBar.text = name
         end
+    }
+end
 
-        handle:close()
-        virtualGPU.callback.fill(1, 1, config.width, config.height, " ")
-        centrizedSet(config.height / 2, "Extracting")
+updateColors = function(oldBackground, oldForeground)
+    container.temp.sandbox.MINEOS_INTEGRATION.COLORS.BACKGROUND = config.colorScheme[1][2]
+    container.temp.sandbox.MINEOS_INTEGRATION.COLORS.FOREGROUND = config.colorScheme[2][2]
 
-        require("Compressor").unpack(currentScriptPath .. "Temp.pkg", currentScriptPath)
-        filesystem.remove(currentScriptPath .. "Temp.pkg")
+    window.titleBar.colors.background = config.colorScheme[3][2]
+    window.titleBar.colors.text = config.colorScheme[4][2]
+    window.titleBar.colors.transparency = config.titleTransparency
 
-        virtualGPU.callback.fill(1, 1, config.width, config.height, " ")
-        centrizedSet(config.height / 2, "Done")
-    else
-        GUI.alert("Download failed: " .. reason)
-        window:remove()
-    end
+    window.gpu:flush(nil, nil, true, oldBackground, oldForeground, config.colorScheme[1][2], config.colorScheme[2][2])
 end
 
 local nextResume = computer.uptime()
@@ -453,19 +434,39 @@ local nextResume = computer.uptime()
 local function resume(...)
     local signal = {...}
 
-    if keyboard.isAltDown() then
-        gpuObject.disabled = false
-        gpuObject.passScreenEvents = false
-
-        if signal[1] == "touch" or signal[1] == "drag" or signal[1] == "drop" or signal[1] == "scroll" or signal[1] == "walk" then
+    if signal[1] == "component_added" and not container.components[signal] then
+        container:passComponent(signal[2], true)
+    end 
+    if signal[1] == "drag" then
+        if keyboard.isAltDown() then
+            window.movingEnabled = false
+            signal[2] = componentAddresses.screen
             container:pushSignal(signal)
+        elseif not window.maximized then
+            window.movingEnabled = true
+            window.eventHandler(workspace, window, ...)
         end
+    end
+    if signal[1] == "touch" or signal[1] == "drop" or signal[1] == "scroll" then
+        signal[2] = componentAddresses.screen
+        signal[3] = signal[3] - window.x + 1
+        signal[4] = signal[4] - window.y
+        container:pushSignal(signal)
+    elseif signal[1] == "key_down" or signal[1] == "key_up" or signal[1] == "clipboard" and windowsContainer.children[#windowsContainer.children].address == container.address then    
+        if keyboard.isControlDown() and keyboard.isShiftDown() and keyboard.isKeyDown(46) then
+            container:pushSignal{"key_down", signal[2], 0, 29, signal[5]}
+            container:pushSignal{"key_down", signal[2], 0, 56, signal[5]}
+            container:pushSignal{"key_down", signal[2], 99, 46, signal[5]}
+        else
+            container:passSignal(signal)
+        end
+
+        workspace:consumeEvent()
     else
-        gpuObject.disabled = true
-        gpuObject.passScreenEvents = true
+        container:passSignal(signal)
     end
 
-    if container.temp.signalQueue[1] or computer.uptime() >= nextResume or container:passSignal(signal) then
+    if container.temp.signalQueue[1] or computer.uptime() >= nextResume then
         local success, result = container:resume()
         workspace:draw()
 
@@ -483,13 +484,10 @@ end
 local success, reason = container:bootstrap()
 
 if success then
-    gpuObject.eventHandler = function(workspace, container, ...)
+    window.gpu.context.eventHandler = function(workspace, container, ...)
         resume(...)
     end
-
-    workspace:draw()    
-    container.startUptime = computer.uptime()
-    resume()
 else
     GUI.alert(reason)
+    window:remove()
 end
