@@ -144,7 +144,7 @@ local function flushGPU(gpu, width, height, runtime, oldBackground, oldForegroun
 
     if runtime then
         local oldSymbols, oldBackgrounds, oldForegrounds, oldWidth, oldHeight, index, newIndex = gpu.temp.symbols, gpu.temp.backgrounds, gpu.temp.foregrounds, gpu.temp.width, gpu.temp.height, 1, 1
-        rawFlushGPU(gpu, width, height, gpu.background, gpu.foreground)
+        rawFlushGPU(gpu, width, height, newBackground or gpu.background, newForeground or gpu.foreground)
 
         for y = 1, oldHeight do
             for x = 1, oldWidth do
