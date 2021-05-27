@@ -76,9 +76,11 @@ local function bootstrap()
                                 progressHandler(math.min(100, math.ceil(downloaded / contentLength * 100)))
                             end
                         else
+			    handle:close()
                             return false, "Write failed: " .. reason
                         end
                     else
+			handle:close()
                         return true
                     end
                 end
