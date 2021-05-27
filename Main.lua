@@ -320,6 +320,30 @@ container.libcomputer.tmpAddress = function()
     return componentAddresses.tmpfs
 end
 
+container.libcomputer.users = function()
+    return computer.users()
+end
+
+container.libcomputer.addUser = function(user)
+    return computer.addUser(user)
+end
+
+container.libcomputer.removeUser = function(user)
+    return computer.removeUser(user)
+end
+
+container.libcomputer.energy = function()
+    return computer.energy()
+end
+
+container.libcomputer.maxEnergy = function()
+    return computer.maxEnergy()
+end
+
+container.libcomputer.uptime = function()
+    return computer.uptime()
+end
+
 window.container = container
 window.address = container.address
 
@@ -411,7 +435,7 @@ container.onBootstrap = function()
         ATTACH_EEPROM = function()
             container.components[componentAddresses.eeprom]:remove()
             local eeprom = component.list("eeprom")()
-    
+
             if eeprom then
                 container:passComponent(eeprom, true)
             end
