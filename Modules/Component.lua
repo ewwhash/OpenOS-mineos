@@ -4,6 +4,7 @@ local eepromCode = [[
 local init
 do
   local component_invoke = component.invoke
+  local component_list = component.list
   local function boot_invoke(address, method, ...)
     local result = table.pack(pcall(component_invoke, address, method, ...))
     if not result[1] then
@@ -14,12 +15,11 @@ do
   end
 
   -- backwards compatibility, may remove later
-  local eeprom = component.list("eeprom")()
   computer.getBootAddress = function()
-    return boot_invoke(eeprom, "getData")
+    return boot_invoke(component_list("eeprom")(), "getData", address)
   end
   computer.setBootAddress = function(address)
-    return boot_invoke(eeprom, "setData", address)
+    return boot_invoke(component_list("eeprom")(), "setData", address)
   end
 
   do
