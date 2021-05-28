@@ -215,7 +215,6 @@ properties:addItem("Terminal").onTouch = function()
             end
         else
             window.titleBar:hide()
-            window.gpu.maxHeight = windowsContainer.height
             window.gpu.context.localY = 1
             if window.maximized then
                 window.gpu:flush(windowsContainer.width, windowsContainer.height, true)
@@ -350,7 +349,7 @@ window.address = container.address
 container:attachComponent(components.createScreen(componentAddresses.screen, container))
 container:attachComponent(components.createFilesystem(componentAddresses.filesystem, filesystem.get(currentScriptPath), currentScriptPath .. "rootfs/"))
 container:attachComponent(components.createFilesystem(componentAddresses.tmpfs, component.proxy(computer.tmpAddress()), "/OpenOS/"))
-window.gpu = container:attachComponent(components.createGPU(componentAddresses.gpu, config.colorScheme[1][2], config.colorScheme[2][2], windowsContainer.width, windowsContainer.height - (window.titleBar.hidden and 0 or 1), container.libcomponent.list("screen")()))
+window.gpu = container:attachComponent(components.createGPU(componentAddresses.gpu, config.colorScheme[1][2], config.colorScheme[2][2], function() return windowsContainer.width end, function() return windowsContainer.height - (window.titleBar.hidden and 0 or 1) end, container.libcomponent.list("screen")()))
 window.gpu.context = window:addChild(GUI.object(1, 1, config.width, config.height))
 window.gpu.context.draw = function()
     local bufferWidth = screen.getWidth()
@@ -386,7 +385,6 @@ window.gpu.context.draw = function()
 end
 
 if window.titleBar.hidden then
-    window.gpu.maxHeight = windowsContainer.height
     window.gpu.context.localY = 1
 else
     window.gpu.context.localY = 2
