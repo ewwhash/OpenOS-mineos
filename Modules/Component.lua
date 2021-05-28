@@ -179,7 +179,7 @@ local function setResolution(gpu, width, height)
 
     if width == gpu.temp.width and height == gpu.temp.height then return end
 
-    if width >= 1 and width <= gpu.maxWidth and height >= 1 and height <= gpu.maxHeight then
+    if width >= 1 and width <= gpu.maxWidth() and height >= 1 and height <= gpu.maxHeight() then
         flushGPU(gpu, width, height, true, nil, nil, gpu.background, gpu.foreground) 
 
         if gpu.onResolutionChange then
@@ -338,7 +338,7 @@ local function createGPU(address, background, foreground, maxWidth, maxHeight, s
             maxDepth = function() return 8 end,
             getDepth = function() return 8 end,
             setDepth = function() return false end,
-            maxResolution = function() return maxWidth, maxHeight end,
+            maxResolution = function() return maxWidth(), maxHeight() end,
             getResolution = function() return gpu.temp.width, gpu.temp.height end,
             setResolution = function(width, height) return setResolution(gpu, width, height) end,
             getViewport = function() return gpu.temp.width, gpu.temp.height end,
