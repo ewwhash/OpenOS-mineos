@@ -250,7 +250,7 @@ properties:addItem("Terminal").onTouch = function()
     end
     width.onInputFinished = function()
         local width = math.floor(tonumber(width.text))
-        resizeWindow(width, window.height)
+        resizeWindow(width, window.gpu.temp.height)
         window.gpu:flush(width, window.gpu.temp.height, true)
         config.width = width
         filesystem.writeTable(configPath, config)
