@@ -120,12 +120,12 @@ local function createFilesystem(address, proxy, relativeDirectory)
     }
 end
 
-local function rawFlushGPU(gpu, width, height, background, foreground)
+local function rawFlushGPU(gpu, width, height)
     gpu.temp = {
         width = width,
         height = height,
-        background = background,
-        foreground = foreground,
+        background = gpu.background,
+        foreground = gpu.foreground,
         symbols = {},
         backgrounds = {},
         foregrounds = {}
@@ -144,7 +144,9 @@ local function flushGPU(gpu, width, height, runtime, oldBackground, oldForegroun
 
     if runtime then
         local oldSymbols, oldBackgrounds, oldForegrounds, oldWidth, oldHeight, index, newIndex = gpu.temp.symbols, gpu.temp.backgrounds, gpu.temp.foregrounds, gpu.temp.width, gpu.temp.height, 1, 1
-        rawFlushGPU(gpu, width, height, newBackground or gpu.background, newForeground or gpu.foreground)
+        gpu.background = newBackground
+        gpu.foreground = newForeground
+        rawFlushGPU(gpu, width, height)
 
         for y = 1, oldHeight do
             for x = 1, oldWidth do
@@ -163,7 +165,7 @@ local function flushGPU(gpu, width, height, runtime, oldBackground, oldForegroun
             gpu.container:pushSignal{"screen_resized", gpu.callback.getScreen(), width, height}
         end
     else
-        rawFlushGPU(gpu, width, height, gpu.background, gpu.foreground)
+        rawFlushGPU(gpu, width, height)
     end
 end
 
@@ -178,7 +180,7 @@ local function setResolution(gpu, width, height)
     if width == gpu.temp.width and height == gpu.temp.height then return end
 
     if width >= 1 and width <= gpu.maxWidth and height >= 1 and height <= gpu.maxHeight then
-        flushGPU(gpu, width, height, true) 
+        flushGPU(gpu, width, height, true, nil, nil, gpu.background, gpu.foreground) 
 
         if gpu.onResolutionChange then
             gpu.onResolutionChange(width, height)

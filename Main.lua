@@ -410,7 +410,7 @@ window.gpu.onResolutionChange = resizeWindow
 
 window.titleBar.maximize.onTouch = function()
     window:maximize()
-    window.gpu:flush(window.width, window.height - 1, true, nil, nil, config.colorScheme[1][2], config.colorScheme[2][2])
+    window.gpu:flush(window.width, window.height - 1, true)
 end
 
 for address, type in pairs(component.list()) do
