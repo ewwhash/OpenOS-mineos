@@ -361,7 +361,7 @@ window.gpu.context.draw = function()
         if (window.gpu.context.y + y - 1) >= 1 and (window.gpu.context.y + y - 1) <= workspace.height then
             for x = 1, window.gpu.temp.width do
                 if (window.gpu.context.x + x - 1) >= workspace.x and (window.gpu.context.x + x - 1) <= workspace.x + workspace.width - 1 then
-                    if config.backgroundTransparency > 0 then
+                    if config.backgroundTransparency > 0 and window.transparencyEnabled then
                         local emptySymbol = window.gpu.temp.symbols[gpuIndex] == " "
                         newFrameSymbols[bufferIndex] = emptySymbol and window.gpu.temp.backgrounds[gpuIndex] == config.colorScheme[1][2] and newFrameSymbols[bufferIndex] or window.gpu.temp.symbols[gpuIndex]
                         newFrameBackgrounds[bufferIndex] = window.gpu.temp.backgrounds[gpuIndex] == config.colorScheme[1][2] and color.blend(newFrameBackgrounds[bufferIndex], config.colorScheme[1][2], config.backgroundTransparency) or window.gpu.temp.backgrounds[gpuIndex]
