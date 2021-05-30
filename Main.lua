@@ -76,11 +76,11 @@ local function bootstrap()
                                 progressHandler(math.min(100, math.ceil(downloaded / contentLength * 100)))
                             end
                         else
-			    handle:close()
+                            handle:close()
                             return false, "Write failed: " .. reason
                         end
                     else
-			handle:close()
+                        handle:close()
                         return true
                     end
                 end
@@ -281,20 +281,20 @@ properties:addSeparator()
 
 menu:addItem("Hotkeys").onTouch = function()
     local container = GUI.addBackgroundContainer(workspace, true, true, "Hotkeys")
-	
-	local help = {
+    
+    local help = {
         "ALT - pass 'drag' event",
         " ",
         "CTRL+E - close editor",
         " ",
         "CTRL+SHIFT+C - interrupt"
-	}
+    }
 
-	local textBox = container.layout:addChild(GUI.textBox(1, 1, 60, #help, nil, 0xB4B4B4, help, 1, 0, 0, false, false))
-	textBox:setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_TOP)
-	textBox.eventHandler = nil
+    local textBox = container.layout:addChild(GUI.textBox(1, 1, 60, #help, nil, 0xB4B4B4, help, 1, 0, 0, false, false))
+    textBox:setAlignment(GUI.ALIGNMENT_HORIZONTAL_CENTER, GUI.ALIGNMENT_VERTICAL_TOP)
+    textBox.eventHandler = nil
 
-	workspace:draw()
+    workspace:draw()
 end
 
 ------------------------------------------------------------------------------
