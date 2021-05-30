@@ -472,6 +472,8 @@ local function resume(...)
         if keyboard.isAltDown() then
             window.movingEnabled = false
             signal[2] = componentAddresses.screen
+            signal[3] = signal[3] - window.x + 1
+            signal[4] = signal[4] - window.y
             container:pushSignal(signal)
         elseif not window.maximized then
             window.movingEnabled = true
