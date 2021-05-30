@@ -465,7 +465,7 @@ local nextResume = computer.uptime()
 local function resume(...)
     local signal = {...}
 
-    if signal[1] == "component_added" and not container.components[signal] then
+    if signal[1] == "component_added" and not container.components[signal] and signal[3] ~= "screen" and signal[3] ~= "gpu" then
         container:passComponent(signal[2], true)
     end 
     if signal[1] == "drag" then
