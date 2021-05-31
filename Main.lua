@@ -462,11 +462,14 @@ end
 local nextResume = computer.uptime()
 
 local function resume(...)
-    local signal = {...}
+    local signal, isKeyboardEvent = {...}
 
     if signal[1] == "component_added" and not container.components[signal] and signal[3] ~= "screen" and signal[3] ~= "gpu" then
         container:passComponent(signal[2], true)
     end 
+
+    isKeyboardEvent = signal[1] == "key_down" or signal[1] == "key_up" or signal[1] == "clipboard"
+
     if signal[1] == "drag" then
         if keyboard.isAltDown() then
             window.movingEnabled = false
@@ -484,7 +487,7 @@ local function resume(...)
         signal[3] = signal[3] - window.x + 1
         signal[4] = signal[4] - window.y
         container:pushSignal(signal)
-    elseif (signal[1] == "key_down" or signal[1] == "key_up" or signal[1] == "clipboard") and windowsContainer.children[#windowsContainer.children].address == container.address then    
+    elseif isKeyboardEvent and windowsContainer.children[#windowsContainer.children].address == container.address then    
         if keyboard.isControlDown() and keyboard.isShiftDown() and keyboard.isKeyDown(46) then
             container:pushSignal{"key_down", signal[2], 0, 29, signal[5]}
             container:pushSignal{"key_down", signal[2], 0, 56, signal[5]}
@@ -494,7 +497,7 @@ local function resume(...)
         end
 
         workspace:consumeEvent()
-    else
+    elseif not isKeyboardEvent then
         container:passSignal(signal)
     end
 
