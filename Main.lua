@@ -343,7 +343,6 @@ container.libcomputer.uptime = function()
     return computer.uptime()
 end
 
-window.container = container
 window.address = container.address
 
 container:attachComponent(components.createScreen(componentAddresses.screen, container))
@@ -485,7 +484,7 @@ local function resume(...)
         signal[3] = signal[3] - window.x + 1
         signal[4] = signal[4] - window.y
         container:pushSignal(signal)
-    elseif signal[1] == "key_down" or signal[1] == "key_up" or signal[1] == "clipboard" and windowsContainer.children[#windowsContainer.children].address == container.address then    
+    elseif (signal[1] == "key_down" or signal[1] == "key_up" or signal[1] == "clipboard") and windowsContainer.children[#windowsContainer.children].address == container.address then    
         if keyboard.isControlDown() and keyboard.isShiftDown() and keyboard.isKeyDown(46) then
             container:pushSignal{"key_down", signal[2], 0, 29, signal[5]}
             container:pushSignal{"key_down", signal[2], 0, 56, signal[5]}
