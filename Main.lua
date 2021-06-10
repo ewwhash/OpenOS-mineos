@@ -462,7 +462,6 @@ updateColors = function(oldBackground, oldForeground)
 end
 
 local nextResume = computer.uptime()
-window.passScreenEvents = true
 
 local function resume(...)
     local signal, isKeyboardEvent = {...}
