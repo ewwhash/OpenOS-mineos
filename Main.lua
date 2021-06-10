@@ -399,6 +399,8 @@ resizeWindow = function(width, height)
         window.localY = math.floor(workspace.height / 2 - window.height / 2)
         window.localX = window.localX < 1 and 1 or window.localX
         window.localY = window.localY < 1 and 1 or window.localY
+        window.gpu.context.width = width
+        window.gpu.context.height = height
     end
 end
 
@@ -460,6 +462,7 @@ updateColors = function(oldBackground, oldForeground)
 end
 
 local nextResume = computer.uptime()
+window.passScreenEvents = true
 
 local function resume(...)
     local signal, isKeyboardEvent = {...}
