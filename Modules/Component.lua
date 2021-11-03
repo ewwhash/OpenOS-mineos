@@ -80,15 +80,15 @@ local function createScreen(address, container)
         address = address,
         type = "screen",
         callback = {
-            isOn = function() end,
-            turnOn = function() end,
-            turnOff = function() end,
+            isOn = function() return true end,
+            turnOn = function() return false end,
+            turnOff = function() return false end,
             getAspectRatio = function() return 3.0, 2.0 end,
-            getKeyboards = function() local keyboards = container.libcomponent.list("keyboard") keyboards.n = 0 for address in pairs(keyboards) do keyboards.n = keyboards.n + 1 end return keyboards end,
-            setPrecise = function() return end,
-            isPrecise = function() end,
-            setTouchModeEnabled = function() end,
-            isTouchModeInverted = function() end
+            getKeyboards = function() local keyboards = container.libcomponent.list("keyboard") local n = 0 for address in pairs(keyboards) do n = n + 1 end keyboards.n = n return keyboards end,
+            setPrecise = function() return false end,
+            isPrecise = function() return false end,
+            setTouchModeEnabled = function() return false end,
+            isTouchModeInverted = function() return false end
         }
     }
 end
