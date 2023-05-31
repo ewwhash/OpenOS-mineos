@@ -1,0 +1,23 @@
+13c13,23
+<   local colors = {0x0,0xff0000,0x00ff00,0xffff00,0x0000ff,0xff00ff,0x00B6ff,0xffffff}
+---
+>   -- local colors = {0xf0f0f0,0xff0000,0x00ff00,0xffff00,0x0000ff,0xff00ff,0x00B6ff,0x2d2d2d}
+>   local colors = {
+>     _G.MINEOS_INTEGRATION.COLORS.BACKGROUND, -- black
+>     0xac1c27, -- red
+>     0x09cf75, -- green
+>     0xd5d64e, -- yellow
+>     0x0000ff, -- dark blue
+>     0xff00ff, -- pink
+>     0x00B6ff, -- light blue
+>     _G.MINEOS_INTEGRATION.COLORS.FOREGROUND -- white
+>   }
+28,29c38,39
+<         local rgb, pal = bg(window.gpu.getForeground())
+<         fg(pal or rgb, not not pal)
+---
+>         bg(window.gpu.getForeground())
+>         fg(_G.MINEOS_INTEGRATION.COLORS.BACKGROUND)
+65a76,77
+>     window.saved[3] = {_G.MINEOS_INTEGRATION.COLORS.BACKGROUND, _G.MINEOS_INTEGRATION.COLORS.BACKGROUND}
+>     window.saved[4] = {_G.MINEOS_INTEGRATION.COLORS.FOREGROUND, _G.MINEOS_INTEGRATION.COLORS.FOREGROUND}

@@ -1,0 +1,24 @@
+7c7
+< local lines = {_OSVERSION .. " (" .. math.floor(computer.totalMemory() / 1024) .. "k RAM)"}
+---
+> local lines = {"\27[32m" .. _OSVERSION .. " \27[37m(" .. math.floor(computer.totalMemory() / 1024) .. "k RAM)"}
+27,30c27,30
+< local borders = {{unicode.char(0x2552), unicode.char(0x2550), unicode.char(0x2555)},
+<                  {unicode.char(0x2502), nil, unicode.char(0x2502)},
+<                  {unicode.char(0x2514), unicode.char(0x2500), unicode.char(0x2518)}}
+< io.write(borders[1][1], string.rep(borders[1][2], maxLine + 2), borders[1][3], "\n")
+---
+> --local borders = {{unicode.char(0x2552), unicode.char(0x2550), unicode.char(0x2555)},
+> --                 {unicode.char(0x2502), nil, unicode.char(0x2502)},
+> --                 {unicode.char(0x2514), unicode.char(0x2500), unicode.char(0x2518)}}
+> --io.write(borders[1][1], string.rep(borders[1][2], maxLine + 2), borders[1][3], "\n")
+32c32,33
+<   io.write(borders[2][1], " ", line, (" "):rep(maxLine - #line + 1), borders[2][3], " \n")
+---
+>   --io.write(borders[2][1], " ", line, (" "):rep(maxLine - #line + 1), borders[2][3], " \n")
+>   io.write(line .. "\n")
+34c35,36
+< io.write(borders[3][1] .. string.rep(borders[3][2], maxLine + 2) .. borders[3][3] .. "\n")
+---
+> --io.write(borders[3][1] .. string.rep(borders[3][2], maxLine + 2) .. borders[3][3] .. "\n")
+> io.write("\n")

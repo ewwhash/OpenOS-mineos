@@ -117,9 +117,9 @@ local function createWindow(x, y, width, height, shadow, title, titleTransparenc
 
     window.titleBar.text = title
     window.titleBar.passScreenEvents = false
-    window.titleBar.close = window.titleBar:addChild(GUI.button(1, 1, 1, 1, nil, 0xFF4940, nil, 0x992400, "⬤"))
-    window.titleBar.minimize = window.titleBar:addChild(GUI.button(3, 1, 1, 1, nil, 0xFFB640, nil, 0x996D00, "⬤"))
-    window.titleBar.maximize = window.titleBar:addChild(GUI.button(5, 1, 1, 1, nil, 0x00B640, nil, 0x006D40, "⬤"))
+    window.titleBar.close = window.titleBar:addChild(GUI.button(1, 1, 1, 1, nil, 0xFF4940, nil, 0x992400, "●"))
+    window.titleBar.minimize = window.titleBar:addChild(GUI.button(3, 1, 1, 1, nil, 0xFFB640, nil, 0x996D00, "●"))
+    window.titleBar.maximize = window.titleBar:addChild(GUI.button(5, 1, 1, 1, nil, 0x00B640, nil, 0x006D40, "●"))
 
     window.titleBar.close.onTouch = function()
         window:remove()

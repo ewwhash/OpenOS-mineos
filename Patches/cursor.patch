@@ -1,0 +1,6 @@
+125,126c125,126
+<         gpu.setForeground(char[4] or char[2], not not char[4])
+<         gpu.setBackground(char[5] or char[3], not not char[5])
+---
+>         gpu.setForeground(char[4] or _G.MINEOS_INTEGRATION.COLORS.FOREGROUND)
+>         gpu.setBackground(char[5] or _G.MINEOS_INTEGRATION.COLORS.BACKGROUND)

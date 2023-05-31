@@ -1,0 +1,6 @@
+41a42
+>       _G.MINEOS_INTEGRATION.CURRENT_PROGRAM(program)
+52c53
+<       return assert(loadfile(program, "bt", env))(...)
+---
+>       return assert(loadfile(program, "bt", env))(...), _G.MINEOS_INTEGRATION.CURRENT_PROGRAM(os.getenv("SHELL"))

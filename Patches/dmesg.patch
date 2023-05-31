@@ -1,0 +1,16 @@
+19c19
+<     if interactive then gpu.setForeground(0xCC2200) end
+---
+>     if interactive then gpu.setForeground(0xac1c27) end
+21c21
+<     if interactive then gpu.setForeground(0x44CC00) end
+---
+>     if interactive then gpu.setForeground(0x2eac63) end
+23c23
+<     if interactive then gpu.setForeground(0xB0B00F) end
+---
+>     if interactive then gpu.setForeground(0xd5d64e) end
+25c25
+<     if interactive then gpu.setForeground(0xFFFFFF) end
+---
+>     if interactive then gpu.setForeground(_G.MINEOS_INTEGRATION.COLORS.FOREGROUND) end

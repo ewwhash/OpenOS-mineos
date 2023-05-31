@@ -1,0 +1,47 @@
+33,36c33,35
+<   w, h = gpu.maxResolution()
+<   gpu.setResolution(w, h)
+<   gpu.setBackground(0x000000)
+<   gpu.setForeground(0xFFFFFF)
+---
+>   w, h = _G.MINEOS_INTEGRATION.RESOLUTION.WIDTH, _G.MINEOS_INTEGRATION.RESOLUTION.HEIGHT
+>   gpu.setBackground(_G.MINEOS_INTEGRATION.COLORS.BACKGROUND)
+>   gpu.setForeground(_G.MINEOS_INTEGRATION.COLORS.FOREGROUND)
+41,42d39
+< local y = 1
+< local uptime = computer.uptime
+46d42
+< local last_sleep = uptime()
+49,55c45,46
+<     gpu.set(1, y, msg)
+<     if y == h then
+<       gpu.copy(1, 2, w, h - 1, 0, -1)
+<       gpu.fill(1, h, w, 1, " ")
+<     else
+<       y = y + 1
+<     end
+---
+>     gpu.fill(1, h / 2, w, 1, " ")
+>     gpu.set(w / 2 - unicode.len(msg) / 2, h / 2, msg)
+57,65c48,52
+<   -- boot can be slow in some environments, protect from timeouts
+<   if uptime() - last_sleep > 1 then
+<     local signal = table.pack(pull(0))
+<     -- there might not be any signal
+<     if signal.n > 0 then
+<       -- push the signal back in queue for the system to use it
+<       computer.pushSignal(table.unpack(signal, 1, signal.n))
+<     end
+<     last_sleep = uptime()
+---
+>   local signal = table.pack(pull(0))
+>   -- there might not be any signal
+>   if signal.n > 0 then
+>     -- push the signal back in queue for the system to use it
+>     computer.pushSignal(table.unpack(signal, 1, signal.n))
+119c106
+< 
+---
+> require("filesystem").mount(_G.MINEOS_INTEGRATION.ROOTFS, "/mnt/mineos")
+139a127
+> _G.MINEOS_INTEGRATION.ATTACH_EEPROM()
