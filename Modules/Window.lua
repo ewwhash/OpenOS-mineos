@@ -103,7 +103,11 @@ local function createWindow(x, y, width, height, shadow, title, titleTransparenc
     window.resize = windowResize
     window.maximize = GUI.windowMaximize
     window.minimize = GUI.windowMinimize
-    window.focus = GUI.windowFocus
+    window.focus = function()
+      GUI.focusedObject = window
+      window.hidden = false
+      window:moveToFront()
+    end
     window.eventHandler = windowEventHandler
     window.movingEnabled = true
     window.drawShadow = shadow
