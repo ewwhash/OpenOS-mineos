@@ -64,7 +64,8 @@ local function bootstrap()
         local headers = select(3, request.response())
         local contentLength, downloaded =
         headers["Content-Length"] and headers["Content-Length"][1] or
-        headers["content-length"] and headers["content-length"][1] or math.huge, 0
+        headers["content-length"] and headers["content-length"][1] or 0, 0
+        contentLength = tonumber(contentLength) or 0
 
         while true do
           local chunk = request.read(math.huge)
